@@ -4,7 +4,12 @@
 #ifdef EFSW_COMPILER_MSVC
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+#ifndef _CRTDBG_MAP_ALLOC
+#define _CRTDBG_MAP_ALLOC
+#endif
 #include <crtdbg.h>
+
 #endif
 
 #include <cassert>
