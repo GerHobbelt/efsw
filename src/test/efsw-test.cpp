@@ -4,9 +4,9 @@
 #include <signal.h>
 #include <iostream>
 
-bool STOP = false;
+static bool STOP = false;
 
-void sigend(int signal)
+static void sigend(int signal)
 {
 	std::cout << std::endl << "Bye bye" << std::endl;
 	STOP = true;
@@ -36,7 +36,7 @@ class UpdateListener : public efsw::FileWatchListener
 		}
 };
 
-efsw::WatchID handleWatchID( efsw::WatchID watchid )
+static efsw::WatchID handleWatchID( efsw::WatchID watchid )
 {
 	switch ( watchid )
 	{
@@ -58,7 +58,12 @@ efsw::WatchID handleWatchID( efsw::WatchID watchid )
 	return watchid;
 }
 
-int main(int argc, char **argv)
+
+#if defined(BUILD_MONOLITHIC)
+#define main(cnt, arr)      efsw_test_main(cnt, arr)
+#endif
+
+int main(int argc, const char** argv)
 {
 	signal( SIGABRT	,	sigend );
 	signal( SIGINT	,	sigend );
