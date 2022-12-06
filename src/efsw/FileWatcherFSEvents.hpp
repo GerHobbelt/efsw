@@ -11,12 +11,17 @@
 #include <list>
 #include <map>
 #include <vector>
+#ifndef EFSW_LEGACY_CPP
+#include <condition_variable>
+#include <mutex>
+#endif
 
 namespace efsw {
 
 /* OSX < 10.7 has no file events */
 /* So i declare the events constants */
 enum FSEventEvents {
+	efswFSEventStreamCreateFlagNoDefer = 0x00000002,
 	efswFSEventStreamCreateFlagFileEvents = 0x00000010,
 	efswFSEventStreamEventFlagItemCreated = 0x00000100,
 	efswFSEventStreamEventFlagItemRemoved = 0x00000200,
@@ -91,6 +96,11 @@ class FileWatcherFSEvents : public FileWatcherImpl {
 
 	std::vector<WatcherFSEvents*> mNeedInit;
 	Mutex mNeedInitMutex;
+
+#ifndef EFSW_LEGACY_CPP
+	std::mutex mWatchesMutex;
+	std::condition_variable mWatchCond;
+#endif
 
   private:
 	void run();
