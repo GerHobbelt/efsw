@@ -1,4 +1,5 @@
 bin/
+build/
 obj/
 make/
 lib/
@@ -9,3 +10,9 @@ CMakeFiles/
 /Makefile
 *.DS_Store
 .qtc_clangd
+.cmake
+.vscode/
+*.so
+*.a
+*.dylib
+*.lib
