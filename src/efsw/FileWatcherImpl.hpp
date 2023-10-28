@@ -35,7 +35,7 @@ class FileWatcherImpl {
 							   std::string oldFilename = "" ) = 0;
 
 	/// @return Returns a list of the directories that are being watched
-	virtual std::list<std::string> directories() = 0;
+	virtual std::vector<std::string> directories() = 0;
 
 	/// @return true if the backend init successfully
 	virtual bool initOK();
@@ -47,9 +47,14 @@ class FileWatcherImpl {
 	/// Search if a directory already exists in the watches
 	virtual bool pathInWatches( const std::string& path ) = 0;
 
+
 	FileWatcher* mFileWatcher;
 	Atomic<bool> mInitOK;
 	bool mIsGeneric;
+
+protected:
+	int getOptionValue( const std::vector<WatcherOption> &options,
+						Option option, int defaultValue );
 };
 
 } // namespace efsw

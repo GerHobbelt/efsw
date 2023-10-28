@@ -28,7 +28,7 @@
 #ifndef ESFW_HPP
 #define ESFW_HPP
 
-#include <list>
+#include <vector>
 #include <string>
 #include <vector>
 
@@ -97,9 +97,11 @@ enum Error {
 	FileRepeated = -2,
 	FileOutOfScope = -3,
 	FileNotReadable = -4,
-	FileRemote = -5, /** Directory in remote file system ( create a generic FileWatcher instance to
-						watch this directory ). */
-	WinReadDirectoryChangesFailed = -6,
+	/// Directory in remote file system
+	/// ( create a generic FileWatcher instance to watch this directory ).
+	FileRemote = -5,
+	/// File system watcher failed to watch for changes.
+	WatcherFailed = -6,
 	Unspecified = -7
 };
 
@@ -179,7 +181,7 @@ class EFSW_API FileWatcher {
 	void watch();
 
 	/// @return Returns a list of the directories that are being watched
-	std::list<std::string> directories();
+	std::vector<std::string> directories();
 
 	/** Allow recursive watchers to follow symbolic links to other directories
 	 * followSymlinks is disabled by default
@@ -226,7 +228,7 @@ class FileWatchListener {
 								   std::string oldFilename = "" ) = 0;
 };
 
-/// Basic interface for listening for file events.
+/// Optional, typically platform specific parameter for customization of a watcher.
 /// @class WatcherOption
 class WatcherOption {
   public:

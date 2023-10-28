@@ -7,8 +7,8 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreServices/CoreServices.h>
+#include <dispatch/dispatch.h>
 #include <efsw/WatcherFSEvents.hpp>
-#include <list>
 #include <map>
 #include <vector>
 #ifndef EFSW_LEGACY_CPP
@@ -74,14 +74,12 @@ class FileWatcherFSEvents : public FileWatcherImpl {
 					   std::string oldFilename = "" );
 
 	/// @return Returns a list of the directories that are being watched
-	std::list<std::string> directories();
+	std::vector<std::string> directories();
 
   protected:
 	static void FSEventCallback( ConstFSEventStreamRef streamRef, void* userData, size_t numEvents,
 								 void* eventPaths, const FSEventStreamEventFlags eventFlags[],
 								 const FSEventStreamEventId eventIds[] );
-
-	Atomic<CFRunLoopRef> mRunLoopRef;
 
 	/// Vector of WatcherWin32 pointers
 	WatchMap mWatches;
@@ -89,22 +87,15 @@ class FileWatcherFSEvents : public FileWatcherImpl {
 	/// The last watchid
 	WatchID mLastWatchID;
 
-	Thread* mThread;
-
 	Mutex mWatchesLock;
 
 	bool pathInWatches( const std::string& path );
-
-	std::vector<WatcherFSEvents*> mNeedInit;
-	Mutex mNeedInitMutex;
 
 #ifndef EFSW_LEGACY_CPP
 	std::mutex mWatchesMutex;
 	std::condition_variable mWatchCond;
 #endif
 
-  private:
-	void run();
 };
 
 } // namespace efsw
