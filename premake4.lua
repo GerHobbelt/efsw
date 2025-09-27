@@ -1,6 +1,7 @@
 newoption { trigger = "verbose", description = "Build efsw with verbose mode." }
 newoption { trigger = "strip-symbols", description = "Strip debugging symbols in other file ( only for relwithdbginfo configuration )." }
 newoption { trigger = "thread-sanitizer", description ="Compile with ThreadSanitizer." }
+newoption { trigger = "address-sanitizer", description ="Compile with AddressSanitizer." }
 
 efsw_major_version	= "1"
 efsw_minor_version	= "5"
@@ -86,6 +87,14 @@ function conf_warnings()
 		linkoptions { "-fsanitize=thread" }
 		if not os.is("macosx") then
 			links { "tsan" }
+		end
+	end
+
+	if _OPTIONS["address-sanitizer"] then
+		buildoptions { "-fsanitize=address" }
+		linkoptions { "-fsanitize=address" }
+		if not os.is("macosx") then
+			links { "asan" }
 		end
 	end
 end
@@ -199,6 +208,32 @@ solution "efsw"
 			defines { "NDEBUG" }
 			flags { "Optimize", "Symbols" }
 			targetname "efsw-test-reldbginfo"
+			conf_warnings()
+
+	project "efsw-test-stdc"
+		kind "ConsoleApp"
+		language "C"
+		links { "efsw-shared-lib" }
+		files { "src/test/*.c" }
+		includedirs { "include", "src" }
+		conf_links()
+
+		configuration "debug"
+			defines { "DEBUG" }
+			flags { "Symbols" }
+			targetname "efsw-test-stdc-debug"
+			conf_warnings()
+
+		configuration "release"
+			defines { "NDEBUG" }
+			flags { "Optimize" }
+			targetname "efsw-test-stdc-release"
+			conf_warnings()
+
+		configuration "relwithdbginfo"
+			defines { "NDEBUG" }
+			flags { "Optimize", "Symbols" }
+			targetname "efsw-test-stdc-reldbginfo"
 			conf_warnings()
 
 	project "efsw-shared-lib"
