@@ -104,7 +104,7 @@ int main(int argc, const char** argv) {
 
 		std::cout << "CurPath: " << CurPath.c_str() << std::endl;
 
-			 /// starts watching
+		/// starts watching
 		fileWatcher.watch();
 
 		/// add a watch to the system
