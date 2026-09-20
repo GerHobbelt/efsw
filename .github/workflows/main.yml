@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   Linux:
+    name: Linux (inotify)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -21,7 +22,8 @@ jobs:
     - name: Run unit tests
       run: |
         ./bin/efsw-unit_tests-release
-  MacOS:
+  macOS:
+    name: macOS (FSEvents)
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v6
@@ -35,6 +37,36 @@ jobs:
     - name: Run unit tests
       run: |
         ./bin/efsw-unit_tests-release
+  kqueue:
+    name: macOS (kqueue)
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install dependencies
+      run: |
+        brew install premake
+    - name: Build
+      run: |
+        premake5 --verbose --force-kqueue gmake
+        make -C make/macosx/ -j$(sysctl -n hw.ncpu) -e config=release_arm64
+    - name: Run unit tests
+      run: |
+        ./bin/efsw-unit_tests-release
+  Generic:
+    name: macOS (Generic Watcher)
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install dependencies
+      run: |
+        brew install premake
+    - name: Build
+      run: |
+        premake5 --verbose gmake
+        make -C make/macosx/ -j$(sysctl -n hw.ncpu) -e config=release_arm64
+    - name: Run unit tests
+      run: |
+        ./bin/efsw-unit_tests-release --generic
   Windows:
     runs-on: windows-latest
     env:
@@ -58,3 +90,61 @@ jobs:
       shell: cmd
       run: |
         .\bin\efsw-unit_tests-release.exe
+  FreeBSD:
+    name: FreeBSD (kqueue)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with: { fetch-depth: 0, submodules: 'recursive' }
+      - name: Set Environment Variables
+        run: |
+          echo "INSTALL_REF=${{ needs.release.outputs.version }}" >> "$GITHUB_ENV"
+          echo "RARCH=$(uname -m)" >> "$GITHUB_ENV"
+      - uses: vmactions/freebsd-vm@v1
+        env:
+          INSTALL_REF: ${{ needs.release.outputs.version }}
+        with:
+          release: '14.1'
+          envs: 'INSTALL_REF'
+          sync: sshfs
+          usesh: true
+          mem: 8192
+          disable-cache: true
+          prepare: |
+            pkg upgrade -y
+            pkg install -y bash pcre2 git curl premake5 gsed gmake
+          run: |
+            export CC=clang
+            export CXX=clang++
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            premake5 --verbose gmake
+            make -C make/bsd/ -j$(nproc) -e config=release_x86_64
+      - name: Run unit tests
+        run: |
+          ./bin/efsw-unit_tests-release
+  Haiku:
+    name: Haiku (Generic Watcher)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with: { fetch-depth: 0, submodules: 'recursive' }
+      - name: Set Environment Variables
+        run: |
+          echo "INSTALL_REF=${{ needs.release.outputs.version }}" >> "$GITHUB_ENV"
+          echo "RARCH=$(uname -m)" >> "$GITHUB_ENV"
+      - uses: vmactions/haiku-vm@v1
+        env:
+          INSTALL_REF: ${{ needs.release.outputs.version }}
+        with:
+          envs: 'INSTALL_REF'
+          usesh: true
+          mem: 8192
+          disable-cache: true
+          prepare: |
+            pkgman install -y git gcc premake5
+          run: |
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            premake5 --verbose gmake
+            make -C make/haiku/ -j$(nproc) -e config=release_arm64

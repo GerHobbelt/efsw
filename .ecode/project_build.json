@@ -207,7 +207,7 @@
   "mingw-debug": {
     "build": [
       {
-        "args": "--os=windows --cc=mingw gmake",
+        "args": "--os=windows --cc=gcc gmake",
         "command": "premake5",
         "working_dir": ""
       },

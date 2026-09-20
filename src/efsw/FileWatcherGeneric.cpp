@@ -5,6 +5,12 @@
 
 namespace efsw {
 
+FileWatcherGeneric::FileWatcherGeneric( FileWatcher* parent ) :
+	FileWatcherGeneric( parent, 1000 ) {
+	mInitOK = true;
+	mIsGeneric = true;
+}
+
 FileWatcherGeneric::FileWatcherGeneric( FileWatcher* parent, unsigned int pollingFreq ) :
 	FileWatcherImpl( parent ), mThread( NULL ), mLastWatchID( 0 ), mPollingFreq( pollingFreq ) {
 	mInitOK = true;
@@ -126,7 +132,8 @@ void FileWatcherGeneric::run() {
 	} while ( mInitOK );
 }
 
-void FileWatcherGeneric::handleAction( Watcher*, const std::string&, unsigned long, std::string ) {
+void FileWatcherGeneric::handleAction( Watcher*, const std::string&, unsigned long,
+									   const std::string& ) {
 	/// Not used
 }
 
