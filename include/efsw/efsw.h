@@ -118,6 +118,9 @@ enum efsw_option {
 	/// files in the new directory watched. This might have the unintended consequence of sending
 	/// duplicated created events due to the system also emitting this event.
 	EFSW_LINUX_PRODUCE_SYNTHETIC_EVENTS = 5,
+	/// Attempt to report moves between directories inside one recursive watch as a single Moved
+	/// event. old_filename contains the absolute source path. The behavior is best-effort.
+	EFSW_OPT_REPORT_CROSS_DIRECTORY_MOVES = 6,
 };
 
 /// Basic interface for listening for file events.

@@ -160,6 +160,11 @@ enum Option {
 	/// files in the new directory watched. This might have the unintended consequence of sending
 	/// duplicated created events due to the system also emitting this event.
 	LinuxProduceSyntheticEvents = 5,
+	/// When enabled, efsw attempts to report a move between directories inside the same recursive
+	/// watch as a single Moved event instead of Delete + Add. oldFilename contains the absolute
+	/// source path. This is best-effort: moves into or out of the watched tree and incomplete or
+	/// dropped native events retain the normal Add/Delete behavior.
+	ReportCrossDirectoryMoves = 6,
 };
 }
 typedef Options::Option Option;

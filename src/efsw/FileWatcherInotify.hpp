@@ -65,13 +65,16 @@ class FileWatcherInotify : public FileWatcherImpl {
 	std::vector<WatcherInotify*> mDeletedWatches;
 
 	WatchID addWatch( const std::string& directory, FileWatchListener* watcher, bool recursive,
-					  bool syntheticEvents, WatcherInotify* parent = NULL,
-					  bool fromInternalEvent = false );
+					  bool syntheticEvents, bool reportCrossDirectoryMoves,
+					  WatcherInotify* parent = NULL, bool fromInternalEvent = false );
 
 	bool pathInWatches( const std::string& path ) override;
 
   private:
 	void run();
+
+	void emitCrossDirectoryMove( Watcher* src, const std::string& srcFile, Watcher* dst,
+								 const std::string& dstFile );
 
 	void removeWatchLocked( WatchID watchid, bool skipInotifyRemove = false );
 

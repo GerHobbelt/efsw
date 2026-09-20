@@ -74,12 +74,17 @@ WatchID FileWatcherInotify::addWatch( const std::string& directory, FileWatchLis
 	if ( !mInitOK )
 		return Errors::Log::createLastError( Errors::Unspecified, directory );
 	Lock initLock( mInitLock );
+
 	bool syntheticEvents = getOptionValue( options, Options::LinuxProduceSyntheticEvents, 0 ) != 0;
-	return addWatch( directory, watcher, recursive, syntheticEvents, NULL );
+	bool reportCrossDirectoryMoves =
+		getOptionValue( options, Options::ReportCrossDirectoryMoves, 0 ) != 0;
+	return addWatch( directory, watcher, recursive, syntheticEvents, reportCrossDirectoryMoves,
+					 NULL );
 }
 
 WatchID FileWatcherInotify::addWatch( const std::string& directory, FileWatchListener* watcher,
-									  bool recursive, bool syntheticEvents, WatcherInotify* parent,
+									  bool recursive, bool syntheticEvents,
+									  bool reportCrossDirectoryMoves, WatcherInotify* parent,
 									  bool fromInternalEvent ) {
 	std::string dir( directory );
 
@@ -151,6 +156,7 @@ WatchID FileWatcherInotify::addWatch( const std::string& directory, FileWatchLis
 	pWatch->Recursive = recursive;
 	pWatch->Parent = parent;
 	pWatch->syntheticEvents = syntheticEvents;
+	pWatch->reportCrossDirectoryMoves = reportCrossDirectoryMoves;
 
 	{
 		Lock lock( mWatchesLock );
@@ -164,30 +170,25 @@ WatchID FileWatcherInotify::addWatch( const std::string& directory, FileWatchLis
 	}
 
 	if ( pWatch->Recursive ) {
-		std::map<std::string, FileInfo> files = FileSystem::filesInfoFromPath( pWatch->Directory );
+		FileInfoList files = FileSystem::filesInfoFromPath( pWatch->Directory );
 
 		if ( fromInternalEvent && parent != NULL && syntheticEvents ) {
 			for ( const auto& file : files ) {
-				if ( file.second.isRegularFile() || file.second.isDirectory() ||
-					 file.second.isLink() ) {
+				if ( file.isRegularFile() || file.isDirectory() || file.isLink() ) {
 					pWatch->Listener->handleFileAction(
 						pWatch->ID, pWatch->Directory,
-						FileSystem::fileNameFromPath( file.second.Filepath ), Actions::Add );
+						FileSystem::fileNameFromPath( file.Filepath ), Actions::Add );
 				}
 			}
 		}
 
-		std::map<std::string, FileInfo>::iterator it = files.begin();
-
-		for ( ; it != files.end(); ++it ) {
+		for ( const auto& cfi : files ) {
 			if ( !mInitOK )
 				break;
 
-			const FileInfo& cfi = it->second;
-
 			if ( cfi.isDirectory() && cfi.isReadable() ) {
-				addWatch( cfi.Filepath, watcher, recursive, syntheticEvents, pWatch,
-						  fromInternalEvent );
+				addWatch( cfi.Filepath, watcher, recursive, syntheticEvents,
+						  reportCrossDirectoryMoves, pWatch, fromInternalEvent );
 			}
 		}
 	}
@@ -338,18 +339,34 @@ void FileWatcherInotify::run() {
 						}
 
 						if ( curWatcher ) {
-							handleAction( curWatcher, (char*)pevent->name, pevent->mask );
+							// For IN_MOVED_TO: if we have a pending cross-dir move with the
+							// option enabled, defer the event — we'll emit Moved instead of
+							// the default Add+Modified that handleAction would fire.
+							bool isMoveActionDst = ( pevent->mask & IN_MOVED_TO ) &&
+												   currentMoveFrom &&
+												   pevent->cookie == currentMoveCookie;
+							bool moveBetweenTwoWatchedDirs =
+								isMoveActionDst && curWatcher != currentMoveFrom;
+							bool deferredMovedTo =
+								moveBetweenTwoWatchedDirs && curWatcher->reportCrossDirectoryMoves &&
+								curWatcher->ID == currentMoveFrom->ID;
+
+							if ( !deferredMovedTo )
+								handleAction( curWatcher, (char*)pevent->name, pevent->mask );
 
 							// Check if this is the destination of a move
-							if ( ( pevent->mask & IN_MOVED_TO ) && currentMoveFrom &&
-								 pevent->cookie == currentMoveCookie ) {
-
-								// If the move happened between TWO DIFFERENT watched directories
-								if ( curWatcher != currentMoveFrom ) {
-									// We need to simulate a delete event, the IN_MOVED_TO will
-									// generate an add event after
-									handleAction( currentMoveFrom, currentMoveFrom->OldFileName,
-												  IN_DELETE );
+							if ( isMoveActionDst ) {
+								if ( moveBetweenTwoWatchedDirs ) {
+									if ( deferredMovedTo ) {
+										emitCrossDirectoryMove(
+											currentMoveFrom, currentMoveFrom->OldFileName,
+											curWatcher, std::string( (char*)pevent->name ) );
+									} else {
+										// We need to simulate a delete event, the IN_MOVED_TO will
+										// generate an add event after
+										handleAction( currentMoveFrom, currentMoveFrom->OldFileName,
+													  IN_DELETE );
+									}
 
 									// Clear the state on the source watcher so it doesn't
 									// get processed again or stuck with stale data.
@@ -557,9 +574,22 @@ void FileWatcherInotify::checkForNewWatcher( Watcher* watch, std::string fpath )
 		if ( !found ) {
 			WatcherInotify* iWatch = static_cast<WatcherInotify*>( watch );
 			addWatch( fpath, watch->Listener, watch->Recursive, iWatch->syntheticEvents,
-					  static_cast<WatcherInotify*>( watch ), true );
+					  iWatch->reportCrossDirectoryMoves, static_cast<WatcherInotify*>( watch ),
+					  true );
 		}
 	}
+}
+
+void FileWatcherInotify::emitCrossDirectoryMove( Watcher* src, const std::string& srcFile,
+												 Watcher* dst, const std::string& dstFile ) {
+	if ( !src || !dst ) {
+		return;
+	}
+
+	std::string oldDstFilename = dst->OldFileName;
+	dst->OldFileName = src->Directory + srcFile;
+	handleAction( dst, dstFile, IN_MOVED_TO );
+	dst->OldFileName = std::move( oldDstFilename );
 }
 
 void FileWatcherInotify::handleAction( Watcher* watch, const std::string& filename,
@@ -595,7 +625,9 @@ void FileWatcherInotify::handleAction( Watcher* watch, const std::string& filena
 
 		if ( watch->Recursive && FileSystem::isDirectory( fpath ) && !watch->OldFileName.empty() ) {
 			/// Update the new directory path
-			std::string opath( watch->Directory + watch->OldFileName );
+			std::string opath( watch->OldFileName );
+			if ( opath.empty() || opath[0] != FileSystem::getOSSlash() )
+				opath = watch->Directory + opath;
 			FileSystem::dirAddSlashAtEnd( opath );
 			FileSystem::dirAddSlashAtEnd( fpath );
 
