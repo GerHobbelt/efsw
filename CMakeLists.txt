@@ -72,8 +72,8 @@ target_compile_features(efsw PRIVATE cxx_std_11)
 if(BUILD_SHARED_LIBS)
 	target_compile_definitions(efsw PRIVATE EFSW_DYNAMIC EFSW_EXPORTS)
 	set_target_properties(efsw PROPERTIES
-		VERSION ${CMAKE_PROJECT_VERSION}
-		SOVERSION 1
+		VERSION ${PROJECT_VERSION}
+		SOVERSION ${PROJECT_VERSION_MAJOR}
 	)
 endif()
 
@@ -153,6 +153,12 @@ configure_package_config_file(
 	NO_CHECK_REQUIRED_COMPONENTS_MACRO
 )
 
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/cmake/${PROJECT_NAME}ConfigVersion.cmake
+  VERSION       ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
 export(TARGETS efsw NAMESPACE efsw:: FILE ${CMAKE_CURRENT_BINARY_DIR}/cmake/${PROJECT_NAME}Targets.cmake)
 if(BUILD_STATIC_LIBS)
 	export(TARGETS efsw-static NAMESPACE efsw:: APPEND FILE ${CMAKE_CURRENT_BINARY_DIR}/cmake/${PROJECT_NAME}Targets.cmake)
@@ -180,7 +186,11 @@ if(EFSW_INSTALL)
 	endif()
 
 	install(EXPORT efswExport NAMESPACE efsw:: DESTINATION "${packageDestDir}" FILE ${PROJECT_NAME}Targets.cmake)
-	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake/efswConfig.cmake DESTINATION "${packageDestDir}")
+	install(FILES
+      ${CMAKE_CURRENT_BINARY_DIR}/cmake/efswConfig.cmake
+	    ${CMAKE_CURRENT_BINARY_DIR}/cmake/${PROJECT_NAME}ConfigVersion.cmake
+	  DESTINATION "${packageDestDir}"
+	)
 endif()
 
 if(BUILD_TEST_APP)
