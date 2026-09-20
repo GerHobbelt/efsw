@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.27 FATAL_ERROR)
 
-project(efsw)
+project(efsw VERSION 1.6.3)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_CXX_STANDARD 11)
+if (NOT CMAKE_CXX_STANDARD)
+	set(CMAKE_CXX_STANDARD 11)
+endif()
 
 set(ESFW_MAIN_PROJECT OFF)
 
@@ -69,6 +71,10 @@ target_compile_features(efsw PRIVATE cxx_std_11)
 
 if(BUILD_SHARED_LIBS)
 	target_compile_definitions(efsw PRIVATE EFSW_DYNAMIC EFSW_EXPORTS)
+	set_target_properties(efsw PROPERTIES
+		VERSION ${CMAKE_PROJECT_VERSION}
+		SOVERSION 1
+	)
 endif()
 
 # platforms
