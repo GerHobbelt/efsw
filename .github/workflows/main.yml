@@ -6,7 +6,7 @@ jobs:
   Linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -18,10 +18,13 @@ jobs:
         ./premake5 --verbose gmake2
         cd make/linux
         make all
+    - name: Run unit tests
+      run: |
+        ./bin/efsw-unit_tests-debug
   MacOS:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
     - name: Install dependencies
       run: |
         brew install premake
@@ -29,12 +32,15 @@ jobs:
       run: |
         premake5 --verbose gmake2
         make -C make/macosx/ -j$(sysctl -n hw.ncpu) all
+    - name: Run unit tests
+      run: |
+        ./bin/efsw-unit_tests-debug
   Windows:
     runs-on: windows-latest
     env:
       MSBUILD_PATH: C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
     - name: Install dependencies
       shell: powershell
       run: |
@@ -48,3 +54,7 @@ jobs:
       shell: cmd
       run: |
         "%MSBUILD_PATH%\MSBuild.exe" .\make\windows\efsw.sln -m /p:Platform="x64"
+    - name: Run unit tests
+      shell: cmd
+      run: |
+        .\bin\efsw-unit_tests-debug.exe
